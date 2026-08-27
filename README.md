@@ -4,18 +4,30 @@ This is a vibe-coded claude plugin automatically deletes any comments that
 Claude writes or modifies. Comments that were already in the file and that 
 Claude did not touch are not modified.
 
+This should work for languages that use comments like `//`, `/* */`, `#`, etc.
+It should also work for python docstrings using multiline strings `""" """`.
+
+```
 Why are claude's comments bad?
-1. function docs often get way too huge and become basically unreadable.
-2. claude's prose has gotten extremely weird...
+1. function docs often get way too huge and become basically nonsensical, especially if
+   claude iterates on the same function multipe times.
+2. claude's prose has gotten extremely bad...
 3. claude's code is actually fairly readable, so a lot of explanations are pointless.
 4. if some piece of code is really confusing... you can just ask claude
    to explain it...
 5. claude's comments often reference the discussion or previous code that
    no longer exists..., which isn't very useful for people trying to understand
    the current code.
+6. I suspect (but have no real evidence) that comments can waste context space...
+7. The comments are sometimes wrong.
+```
 
-It's also been quite difficult to try to get claude to write better comments, or
+I have not found a way to force claude to write better comments, or
 simply not less comments. Skill files and CLAUDE.md have not worked well in my experience.
+
+This will also delete any modified comments. Even if they were originally written by a human.
+I am assuming that if a comment is modified, the content of whatever it is documenting were
+also modified and thus the original comment may be invalid now anyway...
 
 ## Example
 
@@ -26,7 +38,7 @@ def square(a):
     return a ** 2
 ```
 
-If we ask claude to go through and add type hints, it may try modify it like
+If we ask claude to go through and add type hints, it may try modify it like this:
 
 ```python
 def square_claudified(a: Number) -> Number:
@@ -34,7 +46,7 @@ def square_claudified(a: Number) -> Number:
     the resolve the real issue of function legibility: people should understand 
     the load-bearing input/output contract.
     Args:
-        a: a load-bearing python Number that will be squared
+        a: the load-bearing python Number that will be squared
     Returns:
         the square of the input Number ``a``
     """
