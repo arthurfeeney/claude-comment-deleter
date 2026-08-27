@@ -151,6 +151,16 @@ claude-comment-deleter/
 A `.claude-plugin/` directory may contain `plugin.json` **or**
 `marketplace.json`, never both — which is why the plugin lives one level down.
 
+Two things bit us building this, both worth knowing if you fork it:
+
+- `hooks/hooks.json` at the standard path is loaded **automatically**. Declaring
+  `"hooks": "./hooks/hooks.json"` in `plugin.json` as well makes the loader read
+  the same file twice and fail with "Duplicate hooks file detected". The manifest
+  `hooks` key is only for *additional* hook files outside the standard path.
+- The marketplace is resolved from what is **pushed**, not your working tree. A
+  `marketplace.json` that exists only locally produces "Marketplace file not
+  found" on `plugin marketplace add`.
+
 ## Verifying it works
 
 ### Without installing anything
