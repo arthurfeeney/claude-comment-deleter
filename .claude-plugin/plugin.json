@@ -1,0 +1,13 @@
+{
+  "name": "comment-deleter",
+  "displayName": "Comment Deleter",
+  "version": "0.1.0",
+  "description": "Automatically deletes comments that Claude writes or modifies, leaving pre-existing comments untouched.",
+  "author": {
+    "name": "Arthur Feeney",
+    "email": "afeeney@uci.edu"
+  },
+  "license": "MIT",
+  "keywords": ["comments", "hooks", "code-style", "cleanup"],
+  "hooks": "./hooks/hooks.json"
+}
