@@ -51,6 +51,81 @@ claude plugin list
 claude plugin disable comment-deleter@skills-dir
 ```
 
+## Verifying it works
+
+### Without installing anything
+
+The demo drives the real hook scripts with the same JSON Claude Code feeds them,
+against a throwaway git repo, and prints what Claude wrote next to what actually
+landed on disk:
+
+```bash
+python3 scripts/demo.py
+```
+
+It covers an `Edit` call, a `Bash` heredoc append, and a comment of your own
+surviving an edit to the line under it, then prints PASS/FAIL for each. Nothing
+outside the temp directory is touched.
+
+For the full suite:
+
+```bash
+python3 -m pytest test/
+```
+
+### On a file you care about
+
+Point the manual pass at real work without writing anything:
+
+```bash
+python3 scripts/delete_comments.py --dry-run
+```
+
+That reports what it *would* remove from your dirty worktree, compared against
+`HEAD`. Use `--baseline main` to widen the window. Drop `--dry-run` when the
+report looks right.
+
+### In a live session
+
+After installing, ask Claude to write something it will inevitably comment:
+
+> add a function to this file that computes a rolling mean
+
+Three things tell you the hook fired:
+
+1. The comments and docstring are simply absent from the file.
+2. The transcript shows `comment-deleter: removed N new comment(s) in <file>`.
+3. Claude does not try to put them back, because it was told they were removed.
+
+Now add a comment yourself, ask Claude to edit the line beneath it, and confirm
+yours is still there. That is the behaviour that distinguishes this from a
+blanket comment stripper.
+
+If nothing happens, work down this list:
+
+```bash
+claude plugin list                    # is comment-deleter@skills-dir loaded?
+/reload-plugins                       # pick up changes without restarting
+echo $CLAUDE_COMMENT_DELETER          # "off" disables everything
+python3 -c "import sys; print(sys.version)"   # hooks need python3 on PATH
+```
+
+Hooks swallow their own errors so they can never block a tool call, which also
+means failures are quiet. To surface one, run both hooks by hand and read stderr.
+The order matters: `post` only acts on a file that `pre` snapshotted first.
+
+```bash
+EVENT='{"session_id":"dbg","cwd":"'"$PWD"'","tool_name":"Edit","tool_input":{"file_path":"'"$PWD"'/some_file.py"},"tool_use_id":"t1"}'
+export CLAUDE_PLUGIN_ROOT="$PWD"
+
+echo "$EVENT" | python3 scripts/pre_tool_use.py     # snapshot
+# ...edit some_file.py, adding a comment...
+echo "$EVENT" | python3 scripts/post_tool_use.py    # scrub, prints JSON if it removed anything
+```
+
+Silence from the second command means nothing was removed. A `comment-deleter:`
+line on stderr is the hook reporting why it bailed.
+
 ## Usage
 
 There is nothing to run. Once loaded, every file-modifying tool call is wrapped,
