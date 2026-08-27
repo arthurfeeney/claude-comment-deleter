@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-"""Drive the real hooks the way Claude Code does, and show what changes."""
-
 import json
 import os
 import shutil
@@ -11,32 +9,23 @@ import tempfile
 SCRIPTS = os.path.dirname(os.path.abspath(__file__))
 PLUGIN_ROOT = os.path.dirname(SCRIPTS)
 
-BEFORE = '''# tolerance chosen to match the Flash-X reference
-TOLERANCE = 1e-6
-
-
-def solve(field):
-    return field / TOLERANCE
+BEFORE = '''
+def square(a: Number) -> Number:
+    return a ** 2
 '''
 
-CLAUDE_WROTE = '''# tolerance chosen to match the Flash-X reference
-TOLERANCE = 1e-6
-
-
-def solve(field):
-    """Normalize a field by the tolerance.
-
+CLAUDE_WROTE = '''
+def square(a: Number) -> Number:
+    """ Compute the square of the input ``a``, using type hints to make
+    the resolve the real issue of function legibility: people should understand
+    the load-bearing input/output contract.
     Args:
-        field: The field to normalize.
-
+        a: a load-bearing python Number that will be squared
     Returns:
-        The normalized field.
+        the square of the input Number ``a``
     """
-    # Divide by the tolerance to avoid blowups.
-    # This mirrors the approach we discussed earlier.
-    return field / TOLERANCE  # scale it
+    return a ** 2 # compute the square of a using the load-bearing operation ``**``
 '''
-
 
 def run_hook(script, event):
     return subprocess.run(
@@ -149,8 +138,8 @@ def main():
     try:
         outcomes = {
             "Edit tool": edit_scenario(workspace),
-            "Bash edit": bash_scenario(workspace),
-            "Your comments survive": survival_scenario(workspace),
+            #"Bash edit": bash_scenario(workspace),
+            #"Your comments survive": survival_scenario(workspace),
         }
     finally:
         shutil.rmtree(workspace, ignore_errors=True)

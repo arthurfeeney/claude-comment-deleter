@@ -1,10 +1,8 @@
 # claude-comment-deleter
 
 This is a vibe-coded claude plugin automatically deletes any comments that
-claude (1) writes or (2) modifies.
-
-Comments that were already in the file and that Claude did not touch are not
-modified.
+Claude writes or modifies. Comments that were already in the file and that 
+Claude did not touch are not modified.
 
 Why are claude's comments bad?
 1. function docs often get way too huge and become basically unreadable.
@@ -16,9 +14,39 @@ Why are claude's comments bad?
    no longer exists..., which isn't very useful for people trying to understand
    the current code.
 
-Why delete comments instead of trying to make them better written?
-1. I have not had much success using markdown files to tell claude to not write comments
-   and / or only comment actually complex stuff
+It's also been quite difficult to try to get claude to write better comments, or
+simply not less comments. Skill files and CLAUDE.md have not worked well in my experience.
+
+## Example
+
+Lets say we have a function that squares it input
+
+```python
+def square(a):
+    return a ** 2
+```
+
+If we ask claude to go through and add type hints, it may try modify it like
+
+```python
+def square_claudified(a: Number) -> Number:
+    """ Compute the square of the input ``a``, using type hints to make
+    the resolve the real issue of function legibility: people should understand 
+    the load-bearing input/output contract.
+    Args:
+        a: a load-bearing python Number that will be squared
+    Returns:
+        the square of the input Number ``a``
+    """
+    return a ** 2 # compute the square of a using the load-bearing operation ``**``
+```
+
+This plugin automatically cleans it up so the output will look like
+
+```python
+def square_claudified(a: Number) -> Number:
+    return a ** 2
+```
 
 ## Requirements
 
