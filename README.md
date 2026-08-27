@@ -1,6 +1,6 @@
 # claude-comment-deleter
 
-This is a vibe-coded claude plugin automatically deletes any comments that
+This is a Claude plugin that tries to delete any comments that
 Claude writes or modifies. Comments that were already in the file and that 
 Claude did not touch are not modified.
 
@@ -8,29 +8,28 @@ This should work for languages that use comments like `//`, `/* */`, `#`, etc.
 It also works for python docstrings that use multiline strings `""" """`.
 
 **Why are claude's comments bad?**
-1. function docs often get way too huge and become basically nonsensical, especially if
-   claude iterates on the same function multipe times.
-2. claude's prose has gotten extremely bad...
-3. if some piece of code is really confusing... you can just ask claude
-   to explain it...
-4. claude's comments often reference the discussion or previous code that
-   no longer exists.
-5. I suspect (but have no real evidence) that comments can waste context space...
+1. function docs often get way too huge and become basically nonsensical.
+2. claude's prose has gotten extremely bad.
+3. You can just ask your preferred LLM to explain confusing code.
+4. claude's comments often reference the discussion or previous code.
+5. I suspect (but have no real evidence) that comments can waste some context space.
 6. The comments are sometimes wrong.
 
-This will delete any modified comments. Even if they were originally written by a human.
-This is assuming that if a comment is modified, the content of whatever it is documenting was
-also modified and thus the original comment may be invalid now. 
+## Behavior:
 
-Some linting tools use comments to disable / enable features. I.e., C++'s clang-format may use
-the comment `// clang-format off` and similarly, python may do `# fmt off`, to disable formatting a block of code. 
-This plugin tries to account for stuff like this, but it is definitely not possible 
-to account for every single tool in every language.
+This will delete any added or modified comments, including comments originally written by a human.
+This is assuming that if a comment is modified, the content of whatever it is documenting was
+also modified and thus the original comment may be invalid now.
+
+Parts of this plugin can be configured so that some comments are preserved. For instance,
+linting tools often use comments to enable / disable features. I.e., C++'s clang-format may use
+the comment `// clang-format off` to disable formatting a block of code. This plugin tries to account for 
+stuff like this, but it is definitely not possible to account for every single tool in every language.
 
 You can modify this tools configuration file to basically not remove comments with certain phrases in them.
-For instance, you can just tell the tool to not delete comments that have `clang-format` anyway in them.
+For instance, you can just tell the tool to comments that contain the text `clang-format`.
 
-[See how to configure the plugin](#configuration)
+[See details how to configure the plugin](#configuration)
 
 ## Example
 
