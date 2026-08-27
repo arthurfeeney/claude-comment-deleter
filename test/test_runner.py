@@ -7,7 +7,9 @@ import pytest
 
 from comment_deleter.runner import run_post, run_pre
 
-PLUGIN_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PLUGIN_ROOT = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "plugins", "comment-deleter"
+)
 
 
 @pytest.fixture(autouse=True)

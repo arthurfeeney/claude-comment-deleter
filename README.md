@@ -66,30 +66,90 @@ def square_claudified(a: Number) -> Number:
 
 ## Install
 
-The plugin is a directory; installing it means putting it somewhere Claude Code
-scans. The simplest route is a symlink into your personal skills directory,
-which auto-loads it in every project with no marketplace or install step:
+This repository is a **plugin marketplace** (`.claude-plugin/marketplace.json` at
+the root) that publishes one plugin, `comment-deleter`, from
+`plugins/comment-deleter/`. That is what makes it installable rather than a
+loose skills directory.
+
+### From GitHub
 
 ```bash
-mkdir -p ~/.claude/skills && ln -s "$PWD" ~/.claude/skills/comment-deleter
+claude plugin marketplace add arthurfeeney/claude-comment-deleter
+claude plugin install comment-deleter@afeeney-plugins
 ```
 
-It loads as `comment-deleter@skills-dir`. To scope it to one repository instead,
-symlink into that repo's `.claude/skills/` — it loads there after you accept the
-workspace trust dialog.
-
-Reload without restarting:
+### From a local clone
 
 ```bash
-/reload-plugins
+claude plugin marketplace add /path/to/claude-comment-deleter
+claude plugin install comment-deleter@afeeney-plugins
 ```
 
-Check it is loaded, and turn it off again:
+Add `--scope project` to the install to enable it only in the current repo
+instead of user-wide.
+
+### Without the CLI
+
+If `claude` is not on your PATH — the desktop app, for instance — register the
+marketplace and enable the plugin directly in `~/.claude/settings.json`:
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "afeeney-plugins": {
+      "source": {
+        "source": "github",
+        "repo": "arthurfeeney/claude-comment-deleter"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "comment-deleter@afeeney-plugins": true
+  }
+}
+```
+
+For a local checkout, swap the source for
+`{ "source": "directory", "path": "/path/to/claude-comment-deleter" }`. The key
+under `extraKnownMarketplaces` must match the `name` in `marketplace.json`.
+
+To scope it to one project, put the same `enabledPlugins` entry in that repo's
+`.claude/settings.json` (committed, for the team) or `.claude/settings.local.json`
+(personal, gitignored). Settings load user → project → local, so a `false` in a
+local file overrides a `true` from the project.
+
+### Managing it
 
 ```bash
 claude plugin list
-claude plugin disable comment-deleter@skills-dir
+claude plugin details comment-deleter@afeeney-plugins
+claude plugin disable comment-deleter@afeeney-plugins
+claude plugin marketplace update afeeney-plugins
 ```
+
+Changes to a locally-sourced plugin are picked up with `/reload-plugins`, or by
+restarting the session where that command is unavailable.
+
+### Repository layout
+
+```
+claude-comment-deleter/
+├── .claude-plugin/
+│   └── marketplace.json          # the marketplace: lists the plugin below
+├── plugins/
+│   └── comment-deleter/          # the plugin itself
+│       ├── .claude-plugin/
+│       │   └── plugin.json
+│       ├── hooks/hooks.json
+│       ├── commands/
+│       ├── scripts/
+│       └── src/comment_deleter/
+├── test/                         # not shipped with the plugin
+└── README.md
+```
+
+A `.claude-plugin/` directory may contain `plugin.json` **or**
+`marketplace.json`, never both — which is why the plugin lives one level down.
 
 ## Verifying it works
 
@@ -100,7 +160,7 @@ against a throwaway git repo, and prints what Claude wrote next to what actually
 landed on disk:
 
 ```bash
-python3 scripts/demo.py
+python3 plugins/comment-deleter/scripts/demo.py
 ```
 
 It covers an `Edit` call, a `Bash` heredoc append, and a comment of your own
@@ -118,7 +178,7 @@ python3 -m pytest test/
 Point the manual pass at real work without writing anything:
 
 ```bash
-python3 scripts/delete_comments.py --dry-run
+python3 plugins/comment-deleter/scripts/delete_comments.py --dry-run
 ```
 
 That reports what it *would* remove from your dirty worktree, compared against
@@ -155,12 +215,12 @@ means failures are quiet. To surface one, run both hooks by hand and read stderr
 The order matters: `post` only acts on a file that `pre` snapshotted first.
 
 ```bash
+PLUGIN="$PWD/plugins/comment-deleter"
 EVENT='{"session_id":"dbg","cwd":"'"$PWD"'","tool_name":"Edit","tool_input":{"file_path":"'"$PWD"'/some_file.py"},"tool_use_id":"t1"}'
-export CLAUDE_PLUGIN_ROOT="$PWD"
 
-echo "$EVENT" | python3 scripts/pre_tool_use.py     # snapshot
+echo "$EVENT" | CLAUDE_PLUGIN_ROOT="$PLUGIN" python3 "$PLUGIN/scripts/pre_tool_use.py"
 # ...edit some_file.py, adding a comment...
-echo "$EVENT" | python3 scripts/post_tool_use.py    # scrub, prints JSON if it removed anything
+echo "$EVENT" | CLAUDE_PLUGIN_ROOT="$PLUGIN" python3 "$PLUGIN/scripts/post_tool_use.py"
 ```
 
 Silence from the second command means nothing was removed. A `comment-deleter:`
@@ -243,7 +303,7 @@ To scrub comments added since a git ref without waiting for a hook — useful fo
 cleaning up work done before you installed the plugin:
 
 ```bash
-python3 scripts/delete_comments.py --dry-run
+python3 plugins/comment-deleter/scripts/delete_comments.py --dry-run
 ```
 
 Drop `--dry-run` to write. With no arguments it scrubs the dirty worktree against
@@ -251,7 +311,7 @@ Drop `--dry-run` to write. With no arguments it scrubs the dirty worktree agains
 another ref:
 
 ```bash
-python3 scripts/delete_comments.py --baseline main src/nucleus/models/
+python3 plugins/comment-deleter/scripts/delete_comments.py --baseline main src/
 ```
 
 The `/delete-comments` slash command wraps the same script.

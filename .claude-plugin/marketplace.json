@@ -1,0 +1,26 @@
+{
+  "name": "afeeney-plugins",
+  "owner": {
+    "name": "Arthur Feeney",
+    "email": "afeeney@uci.edu",
+    "url": "https://github.com/arthurfeeney"
+  },
+  "plugins": [
+    {
+      "name": "comment-deleter",
+      "source": "./plugins/comment-deleter",
+      "description": "Deletes the comments and docstrings Claude writes or modifies.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Arthur Feeney",
+        "email": "afeeney@uci.edu"
+      },
+      "keywords": [
+        "comments",
+        "docstrings",
+        "hooks",
+        "cleanup"
+      ]
+    }
+  ]
+}
