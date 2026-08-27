@@ -5,29 +5,32 @@ Claude writes or modifies. Comments that were already in the file and that
 Claude did not touch are not modified.
 
 This should work for languages that use comments like `//`, `/* */`, `#`, etc.
-It should also work for python docstrings using multiline strings `""" """`.
+It also works for python docstrings that use multiline strings `""" """`.
 
-```
-Why are claude's comments bad?
+**Why are claude's comments bad?**
 1. function docs often get way too huge and become basically nonsensical, especially if
    claude iterates on the same function multipe times.
 2. claude's prose has gotten extremely bad...
-3. claude's code is actually fairly readable, so a lot of explanations are pointless.
-4. if some piece of code is really confusing... you can just ask claude
+3. if some piece of code is really confusing... you can just ask claude
    to explain it...
-5. claude's comments often reference the discussion or previous code that
-   no longer exists..., which isn't very useful for people trying to understand
-   the current code.
-6. I suspect (but have no real evidence) that comments can waste context space...
-7. The comments are sometimes wrong.
-```
+4. claude's comments often reference the discussion or previous code that
+   no longer exists.
+5. I suspect (but have no real evidence) that comments can waste context space...
+6. The comments are sometimes wrong.
 
-I have not found a way to force claude to write better comments, or
-simply not less comments. Skill files and CLAUDE.md have not worked well in my experience.
+This will delete any modified comments. Even if they were originally written by a human.
+This is assuming that if a comment is modified, the content of whatever it is documenting was
+also modified and thus the original comment may be invalid now. 
 
-This will also delete any modified comments. Even if they were originally written by a human.
-I am assuming that if a comment is modified, the content of whatever it is documenting were
-also modified and thus the original comment may be invalid now anyway...
+Some linting tools use comments to disable / enable features. I.e., C++'s clang-format may use
+the comment `// clang-format off` and similarly, python may do `# fmt off`, to disable formatting a block of code. 
+This plugin tries to account for stuff like this, but it is definitely not possible 
+to account for every single tool in every language.
+
+You can modify this tools configuration file to basically not remove comments with certain phrases in them.
+For instance, you can just tell the tool to not delete comments that have `clang-format` anyway in them.
+
+[See how to configure the plugin](#configuration)
 
 ## Example
 
@@ -62,14 +65,13 @@ def square_claudified(a: Number) -> Number:
 
 ## Requirements
 
-`python3` on `PATH`. No third-party packages — the hooks are stdlib only.
+`python3` on `PATH`. No third-party packages.
 
 ## Install
 
 This repository is a **plugin marketplace** (`.claude-plugin/marketplace.json` at
 the root) that publishes one plugin, `comment-deleter`, from
-`plugins/comment-deleter/`. That is what makes it installable rather than a
-loose skills directory.
+`plugins/comment-deleter/`. 
 
 ### From GitHub
 
@@ -88,36 +90,6 @@ claude plugin install comment-deleter@afeeney-plugins
 Add `--scope project` to the install to enable it only in the current repo
 instead of user-wide.
 
-### Without the CLI
-
-If `claude` is not on your PATH — the desktop app, for instance — register the
-marketplace and enable the plugin directly in `~/.claude/settings.json`:
-
-```json
-{
-  "extraKnownMarketplaces": {
-    "afeeney-plugins": {
-      "source": {
-        "source": "github",
-        "repo": "arthurfeeney/claude-comment-deleter"
-      }
-    }
-  },
-  "enabledPlugins": {
-    "comment-deleter@afeeney-plugins": true
-  }
-}
-```
-
-For a local checkout, swap the source for
-`{ "source": "directory", "path": "/path/to/claude-comment-deleter" }`. The key
-under `extraKnownMarketplaces` must match the `name` in `marketplace.json`.
-
-To scope it to one project, put the same `enabledPlugins` entry in that repo's
-`.claude/settings.json` (committed, for the team) or `.claude/settings.local.json`
-(personal, gitignored). Settings load user → project → local, so a `false` in a
-local file overrides a `true` from the project.
-
 ### Managing it
 
 ```bash
@@ -130,54 +102,15 @@ claude plugin marketplace update afeeney-plugins
 Changes to a locally-sourced plugin are picked up with `/reload-plugins`, or by
 restarting the session where that command is unavailable.
 
-### Repository layout
-
-```
-claude-comment-deleter/
-├── .claude-plugin/
-│   └── marketplace.json          # the marketplace: lists the plugin below
-├── plugins/
-│   └── comment-deleter/          # the plugin itself
-│       ├── .claude-plugin/
-│       │   └── plugin.json
-│       ├── hooks/hooks.json
-│       ├── commands/
-│       ├── scripts/
-│       └── src/comment_deleter/
-├── test/                         # not shipped with the plugin
-└── README.md
-```
-
-A `.claude-plugin/` directory may contain `plugin.json` **or**
-`marketplace.json`, never both — which is why the plugin lives one level down.
-
-Two things bit us building this, both worth knowing if you fork it:
-
-- `hooks/hooks.json` at the standard path is loaded **automatically**. Declaring
-  `"hooks": "./hooks/hooks.json"` in `plugin.json` as well makes the loader read
-  the same file twice and fail with "Duplicate hooks file detected". The manifest
-  `hooks` key is only for *additional* hook files outside the standard path.
-- The marketplace is resolved from what is **pushed**, not your working tree. A
-  `marketplace.json` that exists only locally produces "Marketplace file not
-  found" on `plugin marketplace add`.
-
 ## Verifying it works
 
 ### Without installing anything
-
-The demo drives the real hook scripts with the same JSON Claude Code feeds them,
-against a throwaway git repo, and prints what Claude wrote next to what actually
-landed on disk:
 
 ```bash
 python3 plugins/comment-deleter/scripts/demo.py
 ```
 
-It covers an `Edit` call, a `Bash` heredoc append, and a comment of your own
-surviving an edit to the line under it, then prints PASS/FAIL for each. Nothing
-outside the temp directory is touched.
-
-For the full suite:
+Run the test suite:
 
 ```bash
 python3 -m pytest test/
@@ -185,17 +118,13 @@ python3 -m pytest test/
 
 ### On a file you care about
 
-Point the manual pass at real work without writing anything:
+Do a `dry-run` on the manual pass at a file, without writing any changes:
 
 ```bash
 python3 plugins/comment-deleter/scripts/delete_comments.py --dry-run
 ```
 
-That reports what it *would* remove from your dirty worktree, compared against
-`HEAD`. Use `--baseline main` to widen the window. Drop `--dry-run` when the
-report looks right.
-
-### In a live session
+### Usage In a live session
 
 After installing, ask Claude to write something it will inevitably comment:
 
@@ -207,9 +136,8 @@ Three things tell you the hook fired:
 2. The transcript shows `comment-deleter: removed N new comment(s) in <file>`.
 3. Claude does not try to put them back, because it was told they were removed.
 
-Now add a comment yourself, ask Claude to edit the line beneath it, and confirm
-yours is still there. That is the behaviour that distinguishes this from a
-blanket comment stripper.
+You can now add a comment yourself, ask Claude to edit the line beneath it, and confirm
+yours is still there. 
 
 If nothing happens, work down this list:
 
@@ -236,72 +164,15 @@ echo "$EVENT" | CLAUDE_PLUGIN_ROOT="$PLUGIN" python3 "$PLUGIN/scripts/post_tool_
 Silence from the second command means nothing was removed. A `comment-deleter:`
 line on stderr is the hook reporting why it bailed.
 
-## Usage
-
-There is nothing to run. Once loaded, every file-modifying tool call is wrapped,
-and comments Claude writes are gone before you ever see them.
-
-When something is removed, the transcript shows a line like:
-
-```
-comment-deleter: removed 3 new comment(s) in src/model.py
-```
-
-Claude is told the same thing, so it does not re-add the comments or treat the
-file as unexpectedly modified.
-
-### What it looks like
-
-You have this file, with a comment you wrote:
-
-```python
-# tolerance chosen to match the Flash-X reference
-TOLERANCE = 1e-6
-
-def solve(field):
-    return field / TOLERANCE
-```
-
-Claude edits it and, as usual, decorates the change:
-
-```python
-# tolerance chosen to match the Flash-X reference
-TOLERANCE = 1e-6
-
-def solve(field):
-    """Normalize a field by the tolerance.
-
-    Args:
-        field: The field to normalize.
-
-    Returns:
-        The normalized field.
-    """
-    # This mirrors the approach we discussed earlier.
-    return field / TOLERANCE  # divide by tolerance
-```
-
-What lands on disk:
-
-```python
-# tolerance chosen to match the Flash-X reference
-TOLERANCE = 1e-6
-
-def solve(field):
-    return field / TOLERANCE
-```
-
-Your comment is untouched. The docstring and both of Claude's comments are gone.
-
 ### Turning it off
 
-For one session, no config file needed:
+For one session:
 
 ```bash
 export CLAUDE_COMMENT_DELETER=off
 ```
 
-Permanently for one project, in `.comment-deleter.json`:
+To permanently disable for a project, make a file `.comment-deleter.json`:
 
 ```json
 { "enabled": false }
@@ -431,7 +302,7 @@ it no longer compiles, the edit is reverted.
 ## Configuration
 
 Optional `.comment-deleter.json` in the project root, or
-`~/.claude/comment-deleter.json` for user-wide defaults. Project values win.
+`~/.claude/comment-deleter.json` for user-wide defaults.
 
 ```json
 {
@@ -466,26 +337,6 @@ replaces that list rather than adding to it.
 ```bash
 python3 -m pytest test/
 ```
-
-94 unit and end-to-end tests, including the hook scripts driven over real stdin
-JSON and the `Bash` path driven against a real git repository.
-
-They are backed by a corpus check, because a bad scanner deletes *code*:
-
-| Corpus | Removed | Invariant checked |
-| --- | --- | --- |
-| 129 real Python files | 1,317 | AST identical once bare strings are normalized away on both sides |
-| 991 real JavaScript files | 14,372 | all still pass `node --check` |
-| 7 real shell scripts | 242 | all still pass `bash -n` |
-
-The Python invariant is the strict one: strip every bare string statement from
-both the original and the scrubbed AST, and the two dumps must match exactly. That
-proves the scrub removed comments and unused strings and touched nothing else. No
-file broke and no file changed semantically.
-
-The JavaScript corpus is what caught the nested-template-literal bug, where
-`` `${fn(`https://x`)}` `` closed the outer template early and left a URL in code
-mode, so `//` read as a comment and real code was deleted.
 
 ## Limits
 
