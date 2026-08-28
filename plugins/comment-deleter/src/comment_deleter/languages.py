@@ -31,6 +31,14 @@ class LanguageSpec:
     regex_literals: bool = False
     # In shell and YAML a '#' only opens a comment at the start of a word.
     boundary_required: bool = False
+    # LaTeX and make write a literal marker as an escaped one: 100\% and \#.
+    line_comment_escape: str | None = None
+    # Vimscript reuses '"' for strings, so only a leading one starts a comment.
+    line_comment_at_line_start: bool = False
+    # Sequences that begin with a comment marker but are not comments (PHP's #[]).
+    line_comment_exceptions: tuple[str, ...] = ()
+    # CSS url() takes an unquoted argument, and //cdn.example.com is not a comment.
+    protect_urls: bool = False
 
 
 DOUBLE = StringSpec('"', '"')
@@ -105,6 +113,7 @@ HASH_ONLY = LanguageSpec(
     name="hash",
     line_comments=("#",),
     strings=(DOUBLE, SINGLE),
+    line_comment_escape="\\",
 )
 
 RUBY = LanguageSpec(
@@ -142,18 +151,25 @@ MARKUP = LanguageSpec(
     strings=(),
 )
 
-CSS = LanguageSpec(name="css", block_comments=SLASH_STAR, strings=(DOUBLE, SINGLE))
+CSS = LanguageSpec(
+    name="css", block_comments=SLASH_STAR, strings=(DOUBLE, SINGLE), protect_urls=True
+)
 
 SCSS = LanguageSpec(
     name="scss",
     line_comments=("//",),
     block_comments=SLASH_STAR,
     strings=(DOUBLE, SINGLE),
+    protect_urls=True,
 )
 
-PERCENT = LanguageSpec(name="percent", line_comments=("%",), strings=(DOUBLE, SINGLE))
+PERCENT = LanguageSpec(
+    name="percent", line_comments=("%",), strings=(DOUBLE, SINGLE), line_comment_escape="\\"
+)
 
-VIM = LanguageSpec(name="vim", line_comments=('"',), strings=(SINGLE,))
+VIM = LanguageSpec(
+    name="vim", line_comments=('"',), strings=(SINGLE,), line_comment_at_line_start=True
+)
 
 EXTENSION_SPECS: dict[str, LanguageSpec] = {
     ".py": PYTHON,
@@ -181,6 +197,7 @@ EXTENSION_SPECS: dict[str, LanguageSpec] = {
         line_comments=("//", "#"),
         block_comments=SLASH_STAR,
         strings=(DOUBLE, SINGLE),
+        line_comment_exceptions=("#[",),
     ),
     ".js": JAVASCRIPT,
     ".jsx": JAVASCRIPT,

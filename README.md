@@ -4,8 +4,12 @@ This is a Claude plugin that tries to delete any comments that
 Claude writes or modifies. Comments that were already in the file and that 
 Claude did not touch are not modified.
 
-This should work for languages that use comments like `//`, `/* */`, `#`, etc.
-It also works for python docstrings that use multiline strings `""" """`.
+Install the project from the CLI:
+
+```bash
+claude plugin marketplace add arthurfeeney/claude-comment-deleter
+claude plugin install comment-deleter@afeeney-plugins
+```
 
 **Why are claude's comments bad?**
 1. function docs often get way too huge and become basically nonsensical.
@@ -17,7 +21,7 @@ It also works for python docstrings that use multiline strings `""" """`.
 
 ## Behavior:
 
-This will delete any added or modified comments, including comments originally written by a human.
+This will delete any comments that Claude writes or modifies, including comments originally written by a human.
 This is assuming that if a comment is modified, the content of whatever it is documenting was
 also modified and thus the original comment may be invalid now.
 
@@ -284,19 +288,66 @@ Set `"preserve_directives": false` to delete these too.
 
 ## Supported languages
 
-Python, C/C++/CUDA/Objective-C, Java, Kotlin, Scala, Swift, C#, JavaScript,
-TypeScript, JSX/TSX, Go, Rust, shell, YAML, TOML, Ruby, Perl, R, Julia, Elixir,
-Nix, Terraform, SQL, Lua, Haskell, HTML/XML/Vue/Svelte, CSS/SCSS/Less, LaTeX,
-Dockerfile, Makefile, PHP, Vim.
+Every language below has a behavioural fixture pairing a comment that must be
+deleted with a comment marker hidden inside a string that must survive. Some are
+verified further, by feeding the scrubbed output back to a real compiler.
+
+**Parser-verified** — a real toolchain confirms the scrubbed file still parses:
+
+| Language | Checker |
+| --- | --- |
+| Python | `ast.parse`, plus a 133-file corpus |
+| C | `gcc` or `clang`, `-fsyntax-only` |
+| C++ | `g++` or `clang++`, `-fsyntax-only` |
+| Objective-C | `clang -x objective-c` |
+| Rust | `rustc --emit metadata` |
+| Swift | `swiftc -parse` |
+| Ruby | `ruby -c` |
+| Perl | `perl -c` |
+| JavaScript | `node --check`, plus a 991-file corpus |
+| shell | `bash -n`, plus a 7-file corpus |
+| XML | `xmllint --noout` |
+| SQL | `sqlite3` |
+| Makefile | `make -n` |
+
+**Fixture-tested only** — no toolchain was available to compile the result, so
+these rest on the scanner fixtures and the language's comment rules:
+
+TypeScript, JSX/TSX, CUDA, Java, Kotlin, Scala, C#, Go, YAML, TOML, R, Julia,
+Elixir, Nix, Terraform, Lua, Haskell, HTML, Vue, Svelte, CSS, SCSS, Less, LaTeX,
+Dockerfile, PHP, Vim.
+
+Java has a compile check written and ready; it skips here because macOS ships a
+`javac` stub with no JDK behind it. Install a JDK and it runs automatically.
 
 Markdown, reStructuredText, plain text, JSON, and notebooks are never touched.
 
-The scanners are string-aware, so markers inside string literals are safe:
-`"https://x/#frag"`, JS template literals — including nested ones like
-`` `${fn(`https://x`)}` `` — and regex literals (`/a\/\/b/`), shell heredocs and
-`${#array[@]}`, Rust lifetimes (`&'a str`), and C character literals (`'/'`) are
-all handled. After scrubbing a Python file the result is re-parsed with `ast`; if
-it no longer compiles, the edit is reverted.
+### Marker-shaped code that is not a comment
+
+The scanners are string- and syntax-aware. Each row below once caused a deletion
+of live code and is now a regression test:
+
+| Language | Looks like a comment | Actually |
+| --- | --- | --- |
+| LaTeX | `100\% today` | escaped percent |
+| Vim | `let s = "hello"` | a string, not a `"` comment |
+| PHP | `#[Attribute]` | an attribute |
+| SCSS | `url(//cdn.example.com/x)` | a protocol-relative URL |
+| Makefile | `HASH := \#` | escaped hash |
+| C | `char c = '/';` | a character literal |
+| JS | `` `${fn(`https://x`)}` `` | a nested template literal |
+| JS | `/https:\/\//g` | a regex literal |
+| Rust | `&'a str` | a lifetime, not a string |
+| shell | `${#items[@]}`, heredoc bodies | expansion and data |
+| SQL / TOML | a `--` or `#` inside a quoted string | string contents |
+
+### Known gaps
+
+- **Vim**: a `"` comment is only recognised at the start of a line. Trailing vim
+  comments survive, because `"` is also the string delimiter and guessing wrong
+  deletes code.
+- **Ruby**: `=begin`/`=end` block comments are not detected and survive.
+- Both fail safe: a comment that survives, never code that disappears.
 
 ## Configuration
 
@@ -335,6 +386,25 @@ replaces that list rather than adding to it.
 
 ```bash
 python3 -m pytest test/
+```
+
+198 pass, 1 skips on this machine. Your skip count depends on what you have
+installed.
+
+The compile checks in `test/test_language_syntax.py` are gated per language:
+each one resolves the first of its candidate executables that actually runs
+(`gcc` or `clang` for C, `g++` or `clang++` for C++, and so on) and skips when
+none do. Being on `PATH` is not enough — the gate runs `--version` first,
+because macOS ships a `javac` that resolves but cannot run without a JDK.
+
+Once a toolchain does resolve, a fixture that fails to compile is a hard
+failure rather than a skip: at that point it is a bug in the test file, and
+hiding it would mask exactly the breakage these tests exist to catch.
+
+To see what is enabled on your machine:
+
+```bash
+python3 -m pytest test/test_language_syntax.py -v -rs
 ```
 
 ## Limits

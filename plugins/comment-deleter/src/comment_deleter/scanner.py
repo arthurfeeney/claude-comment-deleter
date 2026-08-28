@@ -89,6 +89,10 @@ def _scan(text: str, spec: LanguageSpec) -> list[CommentSpan]:
     length = len(text)
     index = 0
     while index < length:
+        if spec.protect_urls and text.startswith("url(", index):
+            closing = text.find(")", index)
+            index = length if closing < 0 else closing + 1
+            continue
         if spec.heredocs and text.startswith("<<", index):
             skipped = _skip_heredoc(text, index)
             if skipped is not None:
@@ -115,7 +119,7 @@ def _scan(text: str, spec: LanguageSpec) -> list[CommentSpan]:
             spans.append(CommentSpan(index, end, "block", text[index:end]))
             index = end
         else:
-            if spec.boundary_required and not _at_word_boundary(text, index):
+            if not _line_comment_starts_here(text, index, token, spec):
                 index += len(token)
                 continue
             end = text.find("\n", index)
@@ -135,6 +139,25 @@ def _match_token(
         if text.startswith(token, index):
             return (token, kind, payload)
     return None
+
+
+def _line_comment_starts_here(text: str, index: int, token: str, spec: LanguageSpec) -> bool:
+    if spec.boundary_required and not _at_word_boundary(text, index):
+        return False
+    if spec.line_comment_escape and _is_escaped(text, index, spec.line_comment_escape):
+        return False
+    if spec.line_comment_at_line_start and text[:index].rsplit("\n", 1)[-1].strip():
+        return False
+    return not any(text.startswith(exception, index) for exception in spec.line_comment_exceptions)
+
+
+def _is_escaped(text: str, index: int, escape: str) -> bool:
+    count = 0
+    cursor = index - 1
+    while cursor >= 0 and text[cursor] == escape:
+        count += 1
+        cursor -= 1
+    return count % 2 == 1
 
 
 def _at_word_boundary(text: str, index: int) -> bool:
