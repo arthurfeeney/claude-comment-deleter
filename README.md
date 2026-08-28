@@ -4,7 +4,7 @@ This is a Claude plugin that tries to delete any comments that
 Claude writes or modifies. Comments that were already in the file and that 
 Claude did not touch are not modified.
 
-Install the project from the CLI:
+Install the project with the Claude CLI:
 
 ```bash
 claude plugin marketplace add arthurfeeney/claude-comment-deleter
@@ -29,6 +29,9 @@ Parts of this plugin can be configured so that some comments are preserved. For 
 linting tools often use comments to enable / disable features. I.e., C++'s clang-format may use
 the comment `// clang-format off` to disable formatting a block of code. This plugin tries to account for 
 stuff like this, but it is definitely not possible to account for every single tool in every language.
+
+It also tries to handle strings well. So, for example it should not remove `std::string url = "https://whatever.com;"`,
+which contains `"//"`.
 
 You can modify this tools configuration file to basically not remove comments with certain phrases in them.
 For instance, you can just tell the tool to comments that contain the text `clang-format`.
